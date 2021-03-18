@@ -17,11 +17,11 @@ MissionPlanning::MissionPlanning()
     this->armPub = nh.advertise<std_msgs::Bool>("start_pollination_procedures",1);
     this->numSurveyWaypoints = 3;
     this->surveyWaypoints.resize(this->numSurveyWaypoints);
-    this->surveyWaypoints.at(0).x = 1.25;//6.120;
-    this->surveyWaypoints.at(0).y = 10;//2.653;
+    this->surveyWaypoints.at(0).x = 6.120;//6.120;
+    this->surveyWaypoints.at(0).y = 2.653;//2.653;
     this->surveyWaypoints.at(0).theta = 0.0*DEG2RAD;
-    this->surveyWaypoints.at(1).x = .5;//6.120;
-    this->surveyWaypoints.at(1).y = 2.61;//4.384;
+    this->surveyWaypoints.at(1).x = 6.120;//6.120;
+    this->surveyWaypoints.at(1).y = 4.384;//4.384;
     this->surveyWaypoints.at(1).theta = 90.0*DEG2RAD;
     this->surveyWaypoints.at(2).x = 1.306;
     this->surveyWaypoints.at(2).y = 4.384;
