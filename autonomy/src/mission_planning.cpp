@@ -15,7 +15,7 @@ MissionPlanning::MissionPlanning()
     this->detectedFlowersSub = nh.subscribe<manipulation_common::FlowerMap>( "flower_map",1,&MissionPlanning::detectedFlowersCallback,this);
     this->armSub = nh.subscribe<std_msgs::Bool>("pollination_procedure_ended",1,&MissionPlanning::armCallback,this);
     this->armPub = nh.advertise<std_msgs::Bool>("start_pollination_procedures",1);
-    this->numSurveyWaypoints = 3;
+    this->numSurveyWaypoints = 4;
     this->surveyWaypoints.resize(this->numSurveyWaypoints);
     this->surveyWaypoints.at(0).x = 6.120;//6.120;
     this->surveyWaypoints.at(0).y = 2.653;//2.653;
@@ -26,18 +26,20 @@ MissionPlanning::MissionPlanning()
     this->surveyWaypoints.at(2).x = 1.306;
     this->surveyWaypoints.at(2).y = 4.384;
     this->surveyWaypoints.at(2).theta = 180.0*DEG2RAD;
-    /*this->surveyWaypoints.at(3).x = 1.306;
-    this->surveyWaypoints.at(3).y = 6.477;
-    this->surveyWaypoints.at(3).theta = 90.0*DEG2RAD;
-    this->surveyWaypoints.at(4).x = 6.220;
+    this->surveyWaypoints.at(3).x = 1.306;
+    this->surveyWaypoints.at(3).y = 2.000;
+    this->surveyWaypoints.at(3).theta = 0.0*DEG2RAD;
+    /*this->surveyWaypoints.at(4).x = 6.220;
     this->surveyWaypoints.at(4).y = 6.477;
     this->surveyWaypoints.at(4).theta = 0.0*DEG2RAD;*/
 
     // TEMPORARY!!!!!!!
     // artificially populate grid blocks with fake info assuming survey passed found flowers
     //this->plantRowMap.plantRowsBlocks.at(0).numFlowers = 90;
-    this->plantRowMap.plantRowsBlocks.at(1).numFlowers = 50;
-    this->plantRowMap.plantRowsBlocks.at(2).numFlowers = 10;
+    //this->plantRowMap.plantRowsBlocks.at(1).numFlowers = 50;
+    //this->plantRowMap.plantRowsBlocks.at(2).numFlowers = 10;
+    this->plantRowMap.plantRowsBlocks.at(3).numFlowers = 50;
+    this->plantRowMap.plantRowsBlocks.at(4).numFlowers = 10;
     //this->plantRowMap.plantRowsBlocks.at(8).numFlowers = 1;
     //this->plantRowMap.plantRowsBlocks.at(9).numFlowers = 6;
     // !!!!!!!!!!!!!!!!
@@ -131,36 +133,68 @@ void MissionPlanning::run()
                      this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.x,
                      this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.y,
                      this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.theta*RAD2DEG);
+            ROS_INFO("robotPose = [%f, %f, %f]", this->robotPose.x, this->robotPose.y, this->robotPose.theta*RAD2DEG);
             this->pollinationGoalPose = this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose;
             this->pollinationBlindTurnToPlantHeadingGoal = this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.theta;
             this->blindRotateToPlantGoalQ.z = sin(0.5*this->pollinationBlindTurnToPlantHeadingGoal);
             this->blindRotateToPlantGoalQ.w = cos(0.5*this->pollinationBlindTurnToPlantHeadingGoal);
+            if(this->pollinationGoalPose.y < this->plantRowMap.rowYValues[0] && this->pollinationGoalPose.y < this->plantRowMap.rowYValues[2])
+            {
+                this->goalCorridor = 0;
+            }
+            else if(this->pollinationGoalPose.y > this->plantRowMap.rowYValues[0] && this->pollinationGoalPose.y < this->plantRowMap.rowYValues[2])
+            {
+                this->goalCorridor = 1;
+            }
+            else if(this->pollinationGoalPose.y < this->plantRowMap.rowYValues[0] && this->pollinationGoalPose.y > this->plantRowMap.rowYValues[2])
+            {
+                this->goalCorridor = 2;
+            }
+            if(this->robotPose.y < this->plantRowMap.rowYValues[0] && this->robotPose.y < this->plantRowMap.rowYValues[2])
+            {
+                this->robotCurrentCorridor = 0;
+            }
+            else if(this->robotPose.y > this->plantRowMap.rowYValues[0] && this->robotPose.y < this->plantRowMap.rowYValues[2])
+            {
+                this->robotCurrentCorridor = 1;
+            }
+            else if(this->robotPose.y > this->plantRowMap.rowYValues[0] && this->robotPose.y > this->plantRowMap.rowYValues[2])
+            {
+                this->robotCurrentCorridor = 2;
+            }
             if((this->robotPose.x - this->pollinationGoalPose.x) > 0.0)
             {
-                if(fabs(this->robotPose.y - this->pollinationGoalPose.y) < 1.0) // Traveling within same row
+                ROS_INFO("robot x > goal x");
+                if(this->robotCurrentCorridor == this->goalCorridor) // Traveling within same row
                 {
+                    ROS_INFO("traveling within same row");
                     this->pollinationGoalPose.theta = 180.0*DEG2RAD;
                     this->pollinationBlindTurnToDriveHeadingGoal = 180.0*DEG2RAD;
                 }
                 else // Traveling to different row
                 {
+                    ROS_INFO("traveling to different row");
                     this->pollinationGoalPose.theta = 180.0*DEG2RAD;
                     this->pollinationBlindTurnToDriveHeadingGoal = 0.0*DEG2RAD;
                 }
             }
             else
             {
-                if(fabs(this->robotPose.y - this->pollinationGoalPose.y) < 1.0) // Traveling within same row
+                ROS_INFO("robot x < goal x");
+                if(this->robotCurrentCorridor == this->goalCorridor) // Traveling within same row
                 {
+                    ROS_INFO("traveling within same row");
                     this->pollinationGoalPose.theta = 0.0*DEG2RAD;
                     this->pollinationBlindTurnToDriveHeadingGoal = 0.0*DEG2RAD;
                 }
                 else // Traveling to different row
                 {
+                    ROS_INFO("traveling to different row");
                     this->pollinationGoalPose.theta = 0.0*DEG2RAD;
                     this->pollinationBlindTurnToDriveHeadingGoal = 180.0*DEG2RAD;
                 }
             }
+            ROS_INFO("blind turn to drive heading goal = %f",this->pollinationBlindTurnToDriveHeadingGoal*RAD2DEG);
             this->blindRotateToDriveGoalQ.z = sin(0.5*this->pollinationBlindTurnToDriveHeadingGoal);
             this->blindRotateToDriveGoalQ.w = cos(0.5*this->pollinationBlindTurnToDriveHeadingGoal);
             this->driveActionStartTime = ros::Time::now().toSec();

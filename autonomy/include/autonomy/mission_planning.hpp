@@ -65,6 +65,8 @@ public:
     geometry_msgs::Quaternion blindRotateToDriveGoalQ;
     geometry_msgs::Quaternion blindRotateToPlantGoalQ;
     geometry_msgs::Quaternion robotPoseCurrentQ;
+    unsigned int robotCurrentCorridor; // 0 = below first row, 1 = in between rows, 2 = above second row
+    unsigned int goalCorridor; // 0 = below first row, 1 = in between rows, 2 = above second row
     float blindTurnSpeedSign;
     float blindTurnCrossProduct;
     const double numFlowersCostGain = 0.5;
