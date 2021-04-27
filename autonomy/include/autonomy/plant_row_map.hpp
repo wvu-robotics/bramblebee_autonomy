@@ -39,7 +39,7 @@ public:
     std::vector<PlantRowMap::RowBlock> plantRowsBlocks;
     const float rowYValues[NUM_ROWS] = {3.24, 3.24, 5.41, 5.41}; // m
 private:
-    const float parkingYOffset[NUM_ROWS] = {-1.2, 1.2, -1.2, 1.2}; //  m
+    const float parkingYOffset[NUM_ROWS] = {-1.0, 1.0, -1.0, 1.0}; //  m
     const float rowStartX = 2.09; // m
     const float rowEndX = 5.53; // m
     const float blockDeltaX = 0.688; // m

@@ -5,7 +5,8 @@ MissionPlanning::MissionPlanning()
 {
     ros::spinOnce();
     this->moveBaseClient.waitForServer();
-    this->state = _surveyChooseWaypoint;
+    //this->state = _surveyChooseWaypoint;
+    this->state = _pollinationChooseWaypoint;
     this->surveyWaypointIndex = 0;
     this->driveActionDone = false;
     this->continueRunning = true;
