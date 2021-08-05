@@ -5,8 +5,8 @@ MissionPlanning::MissionPlanning()
 {
     ros::spinOnce();
     this->moveBaseClient.waitForServer();
-    //this->state = _surveyChooseWaypoint;
-    this->state = _pollinationChooseWaypoint;
+    this->state = _surveyChooseWaypoint;
+    //this->state = _pollinationChooseWaypoint;
     this->surveyWaypointIndex = 0;
     this->driveActionDone = false;
     this->continueRunning = true;
@@ -29,20 +29,20 @@ MissionPlanning::MissionPlanning()
     this->surveyWaypoints.at(2).theta = 180.0*DEG2RAD;
     this->surveyWaypoints.at(3).x = 1.306;
     this->surveyWaypoints.at(3).y = 2.000;
-    this->surveyWaypoints.at(3).theta = 0.0*DEG2RAD;
+    this->surveyWaypoints.at(3).theta = 270.0*DEG2RAD;
     /*this->surveyWaypoints.at(4).x = 6.220;
     this->surveyWaypoints.at(4).y = 6.477;
     this->surveyWaypoints.at(4).theta = 0.0*DEG2RAD;*/
 
     // TEMPORARY!!!!!!!
     // artificially populate grid blocks with fake info assuming survey passed found flowers
-    //this->plantRowMap.plantRowsBlocks.at(0).numFlowers = 90;
-    //this->plantRowMap.plantRowsBlocks.at(1).numFlowers = 50;
-    //this->plantRowMap.plantRowsBlocks.at(2).numFlowers = 10;
+    this->plantRowMap.plantRowsBlocks.at(0).numFlowers = 90;
+    this->plantRowMap.plantRowsBlocks.at(1).numFlowers = 50;
+    this->plantRowMap.plantRowsBlocks.at(2).numFlowers = 10;
     this->plantRowMap.plantRowsBlocks.at(3).numFlowers = 50;
     this->plantRowMap.plantRowsBlocks.at(4).numFlowers = 10;
-    //this->plantRowMap.plantRowsBlocks.at(8).numFlowers = 1;
-    //this->plantRowMap.plantRowsBlocks.at(9).numFlowers = 6;
+    this->plantRowMap.plantRowsBlocks.at(8).numFlowers = 1;
+    this->plantRowMap.plantRowsBlocks.at(9).numFlowers = 6;
     // !!!!!!!!!!!!!!!!
 }
 

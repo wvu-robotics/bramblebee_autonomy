@@ -76,7 +76,7 @@ public:
     const double blindDriveTime = 1.0; // sec
     const float blindDriveSpeed = 0.2; // m/s
     const float blindTurnSpeed = 0.3; // rad/s
-    const float blindDriveDistance = 0.1; // m
+    const float blindDriveDistance = 0.2; // m
 };
 
 #endif // MISSION_PLANNING_HPP

@@ -37,9 +37,9 @@ public:
     void addDetectedFlower(geometry_msgs::Vector3 flowerVector, geometry_msgs::Pose2D robotPose);
     // Members
     std::vector<PlantRowMap::RowBlock> plantRowsBlocks;
-    const float rowYValues[NUM_ROWS] = {3.24, 3.24, 5.41, 5.41}; // m
+    const float rowYValues[NUM_ROWS] = {3.5, 3.5, 5.67, 5.67}; // m
 private:
-    const float parkingYOffset[NUM_ROWS] = {-1.0, 1.0, -1.0, 1.0}; //  m
+    const float parkingYOffset[NUM_ROWS] = {-0.9, 0.9, -0.9, 0.9}; //  m
     const float rowStartX = 2.09; // m
     const float rowEndX = 5.53; // m
     const float blockDeltaX = 0.688; // m
