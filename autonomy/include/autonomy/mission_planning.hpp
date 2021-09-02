@@ -4,8 +4,10 @@
 #include <autonomy/plant_row_map.hpp>
 #include <actionlib/client/simple_action_client.h>
 #include <move_base_msgs/MoveBaseAction.h>
+#include <tf2_ros/transform_listener.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <vector>
 #include <std_msgs/Bool.h>
 #include <manipulation_common/FlowerMap.h>
@@ -30,6 +32,7 @@ public:
     void detectedFlowersCallback(const manipulation_common::FlowerMap::ConstPtr& msg);
     void armCallback(const  std_msgs::Bool::ConstPtr& msg);
     unsigned int findNumUnpollinatedCells();
+    double angleError(double goal, double actual);
     // Members
     ros::NodeHandle nh;
     ros::Rate loopRate;
@@ -38,6 +41,8 @@ public:
     ros::Subscriber armSub;
     ros::Publisher blindDriveTwistPub;
     ros::Publisher armPub;
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener;
     bool continueRunning;
     PlantRowMap plantRowMap;
     MISSION_STATE_T state;
@@ -46,6 +51,7 @@ public:
     std::vector<geometry_msgs::Pose2D> surveyWaypoints;
     geometry_msgs::Twist blindDriveTwist;
     geometry_msgs::Pose2D pollinationGoalPose;
+    geometry_msgs::TransformStamped tfStamped;
     std_msgs::Bool armMsg;
     float pollinationBlindTurnToDriveHeadingGoal;
     float pollinationBlindTurnToPlantHeadingGoal;
@@ -69,6 +75,9 @@ public:
     unsigned int goalCorridor; // 0 = below first row, 1 = in between rows, 2 = above second row
     float blindTurnSpeedSign;
     float blindTurnCrossProduct;
+    float blindDriveDistanceError;
+    float blindDriveSpeedSign;
+    float blindDriveGoalY;
     const double numFlowersCostGain = 0.5;
     const double distanceCostGain = 0.5;
     const float maxFlowerDetectDistance = 1.0; // m
@@ -77,6 +86,9 @@ public:
     const float blindDriveSpeed = 0.2; // m/s
     const float blindTurnSpeed = 0.3; // rad/s
     const float blindDriveDistance = 0.2; // m
+    const float blindDriveDistanceTolerance = 0.05; // m
+    const double blindTurnAngleTolerance = 2.0*DEG2RAD; // deg --> rad
+    const double interCommandSleepDuration = 0.5; // sec
 };
 
 #endif // MISSION_PLANNING_HPP

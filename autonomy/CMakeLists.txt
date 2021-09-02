@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   actionlib
   manipulation_common
+  tf2_ros
 )
 
 ## System dependencies are found with CMake's conventions

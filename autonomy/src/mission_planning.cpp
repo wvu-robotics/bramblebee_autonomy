@@ -1,17 +1,17 @@
 #include <autonomy/mission_planning.hpp>
 
 MissionPlanning::MissionPlanning()
-    : moveBaseClient("move_base"), loopRate(50)
+    : moveBaseClient("move_base"), loopRate(50), tfListener(tfBuffer)
 {
     ros::spinOnce();
     this->moveBaseClient.waitForServer();
-    this->state = _surveyChooseWaypoint;
-    //this->state = _pollinationChooseWaypoint;
+    //this->state = _surveyChooseWaypoint;
+    this->state = _pollinationChooseWaypoint;
     this->surveyWaypointIndex = 0;
     this->driveActionDone = false;
     this->continueRunning = true;
     this->performingSurveyPass = true;
-    this->poseSub = nh.subscribe<nav_msgs::Odometry>("/nav_filter/nav_filter/states",1,&MissionPlanning::poseCallback,this);
+    //this->poseSub = nh.subscribe<nav_msgs::Odometry>("/nav_filter/nav_filter/states",1,&MissionPlanning::poseCallback,this);
     this->blindDriveTwistPub = nh.advertise<geometry_msgs::Twist>("/cmd_vel",1);
     this->detectedFlowersSub = nh.subscribe<manipulation_common::FlowerMap>( "flower_map",1,&MissionPlanning::detectedFlowersCallback,this);
     this->armSub = nh.subscribe<std_msgs::Bool>("pollination_procedure_ended",1,&MissionPlanning::armCallback,this);
@@ -36,7 +36,7 @@ MissionPlanning::MissionPlanning()
 
     // TEMPORARY!!!!!!!
     // artificially populate grid blocks with fake info assuming survey passed found flowers
-    this->plantRowMap.plantRowsBlocks.at(0).numFlowers = 90;
+    //this->plantRowMap.plantRowsBlocks.at(0).numFlowers = 90;
     this->plantRowMap.plantRowsBlocks.at(1).numFlowers = 50;
     this->plantRowMap.plantRowsBlocks.at(2).numFlowers = 10;
     this->plantRowMap.plantRowsBlocks.at(3).numFlowers = 50;
@@ -62,6 +62,18 @@ void MissionPlanning::run()
             };*/
     while(ros::ok() && continueRunning)
     {
+        try
+        {
+            this->tfStamped = this->tfBuffer.lookupTransform("greenhouse", "base_link", ros::Time(0));
+            this->robotPose.x = this->tfStamped.transform.translation.x;
+            this->robotPose.y = this->tfStamped.transform.translation.y;
+            this->robotPose.theta = atan2(2.0*(tfStamped.transform.rotation.w*tfStamped.transform.rotation.z+tfStamped.transform.rotation.x*tfStamped.transform.rotation.y),
+                                  1.0 - 2.0*(tfStamped.transform.rotation.y*tfStamped.transform.rotation.y+tfStamped.transform.rotation.z*tfStamped.transform.rotation.z));
+        }
+        catch (tf2::TransformException &ex)
+        {
+            ROS_WARN("%s", ex.what());
+        }
         this->currentTime = ros::Time::now().toSec();
         switch(this->state)
         {
@@ -136,6 +148,7 @@ void MissionPlanning::run()
                      this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.theta*RAD2DEG);
             ROS_INFO("robotPose = [%f, %f, %f]", this->robotPose.x, this->robotPose.y, this->robotPose.theta*RAD2DEG);
             this->pollinationGoalPose = this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose;
+            this->blindDriveGoalY = this->pollinationGoalPose.y - this->blindDriveDistance*this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).yNormalDir;
             this->pollinationBlindTurnToPlantHeadingGoal = this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationPose.theta;
             this->blindRotateToPlantGoalQ.z = sin(0.5*this->pollinationBlindTurnToPlantHeadingGoal);
             this->blindRotateToPlantGoalQ.w = cos(0.5*this->pollinationBlindTurnToPlantHeadingGoal);
@@ -203,7 +216,7 @@ void MissionPlanning::run()
             this->state = _pollinationBlindTurnToDrive;
             break;
         case _pollinationBlindTurnToDrive:
-            if(fabs(this->blindRotateToDriveGoalQ.z - this->robotPoseCurrentQ.z) < 0.01 && fabs(this->blindRotateToDriveGoalQ.w - this->robotPoseCurrentQ.w) < 0.01)
+            if(fabs(angleError(this->pollinationBlindTurnToDriveHeadingGoal, this->robotPose.theta)) < this->blindTurnAngleTolerance)
             {
                 ROS_INFO("pollination blind rotate to drive complete");
                 this->blindDriveTwist.linear.x = 0.0;
@@ -221,12 +234,20 @@ void MissionPlanning::run()
             else
             {
                 ROS_INFO_THROTTLE(1,"pollination blind rotate to drive executing");
-                this->blindTurnCrossProduct = cos(this->robotPose.theta)*sin(this->pollinationBlindTurnToDriveHeadingGoal) -
-                        cos(this->pollinationBlindTurnToDriveHeadingGoal)*sin(this->robotPose.theta);
-                if(this->blindTurnCrossProduct > 1.0) this->blindTurnCrossProduct = 1.0;
-                else if(this->blindTurnCrossProduct < -1.0) this->blindTurnCrossProduct = -1.0;
-                if(asin(this->blindTurnCrossProduct) >= 0.0) this->blindTurnSpeedSign = 1.0;
-                else this->blindTurnSpeedSign = -1.0;
+                //this->blindTurnCrossProduct = cos(this->robotPose.theta)*sin(this->pollinationBlindTurnToDriveHeadingGoal) -
+                //        cos(this->pollinationBlindTurnToDriveHeadingGoal)*sin(this->robotPose.theta);
+                //if(this->blindTurnCrossProduct > 1.0) this->blindTurnCrossProduct = 1.0;
+                //else if(this->blindTurnCrossProduct < -1.0) this->blindTurnCrossProduct = -1.0;
+                //if(asin(this->blindTurnCrossProduct) >= 0.0) this->blindTurnSpeedSign = 1.0;
+                //else this->blindTurnSpeedSign = -1.0;
+                if(angleError(this->pollinationBlindTurnToDriveHeadingGoal, this->robotPose.theta) > 0.0)
+                {
+                    this->blindTurnSpeedSign = 1.0;
+                }
+                else
+                {
+                    this->blindTurnSpeedSign = -1.0;
+                }
                 this->blindDriveTwist.linear.x = 0.0;
                 this->blindDriveTwist.angular.z = this->blindTurnSpeed*this->blindTurnSpeedSign;
                 this->blindDriveTwistPub.publish(this->blindDriveTwist);
@@ -241,6 +262,7 @@ void MissionPlanning::run()
                 this->surveyWaypointIndex++;
                 this->driveActionStartTime = ros::Time::now().toSec();
                 this->state = _pollinationBlindTurnToPlant;
+                ros::Duration(this->interCommandSleepDuration).sleep();
             }
             else if((this->currentTime - this->driveActionStartTime) > this->driveActionTimeout)
             {
@@ -255,7 +277,7 @@ void MissionPlanning::run()
             }
             break;
         case _pollinationBlindTurnToPlant:
-            if(fabs(this->blindRotateToPlantGoalQ.z - this->robotPoseCurrentQ.z) < 0.01 && fabs(this->blindRotateToPlantGoalQ.w - this->robotPoseCurrentQ.w) < 0.01)
+            if(fabs(angleError(this->pollinationBlindTurnToPlantHeadingGoal, this->robotPose.theta)) < this->blindTurnAngleTolerance)
             {
                 ROS_INFO("pollination blind rotate to plant complete");
                 this->blindDriveTwist.linear.x = 0.0;
@@ -264,15 +286,24 @@ void MissionPlanning::run()
                 this->driveActionStartTime = ros::Time::now().toSec();
                 this->blindDriveInitPose = this->robotPose;
                 this->state = _pollinationBlindForward;
+                ros::Duration(this->interCommandSleepDuration).sleep();
             }
             else
             {
                 ROS_INFO_THROTTLE(1,"pollination blind rotate to plant executing");
-                this->blindTurnCrossProduct = cos(this->robotPose.theta)*sin(this->pollinationBlindTurnToPlantHeadingGoal) -
-                        cos(this->pollinationBlindTurnToPlantHeadingGoal)*sin(this->robotPose.theta);
-                if(this->blindTurnCrossProduct > 1.0) this->blindTurnCrossProduct = 1.0;
-                else if(this->blindTurnCrossProduct < -1.0) this->blindTurnCrossProduct = -1.0;
-                if(asin(this->blindTurnCrossProduct) >= 0.0) this->blindTurnSpeedSign = 1.0;
+                //this->blindTurnCrossProduct = cos(this->robotPose.theta)*sin(this->pollinationBlindTurnToPlantHeadingGoal) -
+                //        cos(this->pollinationBlindTurnToPlantHeadingGoal)*sin(this->robotPose.theta);
+                //if(this->blindTurnCrossProduct > 1.0) this->blindTurnCrossProduct = 1.0;
+                //else if(this->blindTurnCrossProduct < -1.0) this->blindTurnCrossProduct = -1.0;
+                //if(asin(this->blindTurnCrossProduct) >= 0.0) this->blindTurnSpeedSign = 1.0;
+                if(angleError(this->pollinationBlindTurnToPlantHeadingGoal, this->robotPose.theta) > 0.0)
+                {
+                    this->blindTurnSpeedSign = 1.0;
+                }
+                else
+                {
+                    this->blindTurnSpeedSign = -1.0;
+                }
                 this->blindDriveTwist.linear.x = 0.0;
                 this->blindDriveTwist.angular.z = this->blindTurnSpeed*this->blindTurnSpeedSign;
                 this->blindDriveTwistPub.publish(this->blindDriveTwist);
@@ -280,7 +311,10 @@ void MissionPlanning::run()
             }
             break;
         case _pollinationBlindForward:
-            if(hypot(this->robotPose.x - this->blindDriveInitPose.x, this->robotPose.y - this->blindDriveInitPose.y) >= this->blindDriveDistance)
+            //if(hypot(this->robotPose.x - this->blindDriveInitPose.x, this->robotPose.y - this->blindDriveInitPose.y) >= this->blindDriveDistance)
+            this->blindDriveDistanceError = this->blindDriveGoalY - this->robotPose.y;
+            ROS_INFO_THROTTLE(0.5,"blindDriveDistanceError = %f",this->blindDriveDistanceError);
+            if(fabs(this->blindDriveDistanceError) < this->blindDriveDistanceTolerance)
             {
                 ROS_INFO("pollination blind drive forward complete");
                 this->blindDriveTwist.linear.x = 0.0;
@@ -290,19 +324,23 @@ void MissionPlanning::run()
                 this->armMsg.data = true;
                 this->armPub.publish(this->armMsg);
                 this->state = _pollinationArm;
+                ros::Duration(this->interCommandSleepDuration).sleep();
             }
             else
             {
                 ROS_INFO_THROTTLE(1,"pollination blind drive forward executing");
-                this->blindDriveTwist.linear.x = this->blindDriveSpeed;
+                this->blindDriveTwist.linear.x = std::copysign(this->blindDriveSpeed, this->blindDriveDistanceError*(-1.0)*this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).yNormalDir);
                 this->blindDriveTwist.angular.z = 0.0;
                 this->blindDriveTwistPub.publish(this->blindDriveTwist);
                 this->state = _pollinationBlindForward;
             }
             break;
         case _pollinationArm:
-            if(this->pollinationArmManeuversComplete)
+            if(1/*this->pollinationArmManeuversComplete*/)
             {
+                // TEMP*******************
+                ros::Duration(2.0).sleep();
+                // **********************
                 ROS_INFO("pollination arm proceedure complete");
                 this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationComplete = true;
                 this->driveActionStartTime = ros::Time::now().toSec();
@@ -316,17 +354,20 @@ void MissionPlanning::run()
             }
             break;
         case _pollinationBlindBack:
-            if(hypot(this->robotPose.x - this->blindDriveInitPose.x, this->robotPose.y - this->blindDriveInitPose.y) >= this->blindDriveDistance)
+            //if(hypot(this->robotPose.x - this->blindDriveInitPose.x, this->robotPose.y - this->blindDriveInitPose.y) >= this->blindDriveDistance)
+            this->blindDriveDistanceError = this->pollinationGoalPose.y - this->robotPose.y;
+            if(fabs(this->blindDriveDistanceError) < this->blindDriveDistanceTolerance)
             {
                 ROS_INFO("pollination blind drive backward complete");
                 this->blindDriveTwist.linear.x = 0.0;
                 this->blindDriveTwistPub.publish(this->blindDriveTwist);
                 this->state = _pollinationCheckFinished;
+                ros::Duration(this->interCommandSleepDuration).sleep();
             }
             else
             {
                 ROS_INFO_THROTTLE(1,"pollination blind drive backward executing");
-                this->blindDriveTwist.linear.x = (-1.0)*this->blindDriveSpeed;
+                this->blindDriveTwist.linear.x = std::copysign(this->blindDriveSpeed, this->blindDriveDistanceError*(-1.0)*this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).yNormalDir);
                 this->blindDriveTwistPub.publish(this->blindDriveTwist);
                 this->state = _pollinationBlindBack;
             }
@@ -441,4 +482,24 @@ unsigned int MissionPlanning::findNumUnpollinatedCells()
         }
     }
     return unpollinatedCount;
+}
+
+double MissionPlanning::angleError(double goal, double actual)
+{
+    double uXAct, uYAct, uXGoal, uYGoal;
+    double errorSign;
+    uXAct = cos(actual);
+    uYAct = sin(actual);
+    uXGoal = cos(goal);
+    uYGoal = sin(goal);
+
+    if(asin(uXAct*uYGoal-uXGoal*uYAct)>=0)
+    {
+        errorSign = 1.0;
+    }
+    else
+    {
+        errorSign = -1.0;
+    }
+    return errorSign*acos(uXAct*uXGoal+uYAct*uYGoal);
 }
