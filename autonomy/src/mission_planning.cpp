@@ -336,11 +336,8 @@ void MissionPlanning::run()
             }
             break;
         case _pollinationArm:
-            if(1/*this->pollinationArmManeuversComplete*/)
+            if(this->pollinationArmManeuversComplete)
             {
-                // TEMP*******************
-                ros::Duration(2.0).sleep();
-                // **********************
                 ROS_INFO("pollination arm proceedure complete");
                 this->plantRowMap.plantRowsBlocks.at(this->bestPollinationCellIndex).pollinationComplete = true;
                 this->driveActionStartTime = ros::Time::now().toSec();

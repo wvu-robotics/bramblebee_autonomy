@@ -87,7 +87,7 @@ public:
     const float blindTurnSpeed = 0.3; // rad/s
     const float blindDriveDistance = 0.2; // m
     const float blindDriveDistanceTolerance = 0.05; // m
-    const double blindTurnAngleTolerance = 2.0*DEG2RAD; // deg --> rad
+    const double blindTurnAngleTolerance = 1.0*DEG2RAD; // deg --> rad
     const double interCommandSleepDuration = 0.5; // sec
 };
 
